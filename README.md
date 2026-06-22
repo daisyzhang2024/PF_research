@@ -7,7 +7,7 @@
 ## Repository Structure
 
 ```
-chmr_project/
+PF_research/
 ├── README.md                          ← this file
 ├── scripts/
 │   └── idor_scraper.py               ← IDOR PDF scraper + CHMR extractor
