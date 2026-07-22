@@ -1,59 +1,85 @@
-import requests
-import time
+import osmnx as ox
 import pandas as pd
+import time
 
-OVERPASS_URL = "https://overpass-api.de/api/interpreter"
+PLACE = "Chicago, Illinois, USA"
+TAGS = {"shop": True}
 
-HEADERS = {
-    "User-Agent": "PF_research CHMR project (student research, contact: daisyz@uchicago.edu)"
-}
+MAX_RETRIES = 5
+BASE_BACKOFF = 20  # seconds, doubles each retry
+
+# Rotate through these if one backend refuses connections or errors out.
+OVERPASS_ENDPOINTS = [
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+    "https://lz4.overpass-api.de/api/interpreter",
+]
+
+ox.settings.requests_timeout = 180
+ox.settings.log_console = False
+ox.settings.use_cache = True  # cache successful responses locally so re-runs don't re-hit the server
 
 
-def query_shop_count(date_str, shop_filter=""):
-    """
-    date_str: e.g. '2019-04-01'
-    shop_filter: optional regex filter for shop tag values, e.g. '~"^(supermarket|convenience)$"'
-    """
-    q = f"""
-    [out:json][timeout:180][date:"{date_str}T00:00:00Z"];
-    area["name"="Cook County"]["admin_level"="6"]->.a;
-    (
-      node["shop"{shop_filter}](area.a);
-      way["shop"{shop_filter}](area.a);
-    );
-    out count;
-    """
+def set_historical_date(date_str):
+    """date_str: e.g. '2015-01-01'"""
+    ox.settings.overpass_settings = (
+        f'[out:json][timeout:{ox.settings.requests_timeout}]'
+        f'[date:"{date_str}T00:00:00Z"]'
+    )
 
-    r = requests.post(OVERPASS_URL, data={"data": q}, headers=HEADERS)
 
-    if r.status_code != 200:
-        print(f"Error {r.status_code} for {date_str}: {r.text[:300]}")
+def query_shop_count_for_date(date_str):
+    set_historical_date(date_str)
 
-    r.raise_for_status()
+    last_exception = None
+    for attempt in range(1, MAX_RETRIES + 1):
+        # Cycle through endpoints across attempts so a dead backend gets skipped.
+        endpoint = OVERPASS_ENDPOINTS[(attempt - 1) % len(OVERPASS_ENDPOINTS)]
+        ox.settings.overpass_url = endpoint
 
-    return int(r.json()["elements"][0]["tags"]["total"])
+        start = time.monotonic()
+        try:
+            gdf = ox.features_from_place(PLACE, TAGS)
+            elapsed = time.monotonic() - start
+            count = len(gdf)
+            print(f"  [{date_str}] {elapsed:.1f}s via {endpoint} -> {count} shop features")
+            return count
+        except Exception as e:
+            elapsed = time.monotonic() - start
+            last_exception = e
+            wait = BASE_BACKOFF * (2 ** (attempt - 1))
+            print(f"  [{date_str}] error after {elapsed:.1f}s via {endpoint}: {e} "
+                  f"-- retrying in {wait}s (attempt {attempt}/{MAX_RETRIES})")
+            time.sleep(wait)
+
+    raise RuntimeError(f"Failed after {MAX_RETRIES} attempts for {date_str}: {last_exception}")
 
 
 def main():
     months = pd.date_range("2015-01-01", "2021-12-01", freq="MS")
     records = []
 
+    run_start = time.monotonic()
+
     for m_date in months:
         date_str = m_date.strftime("%Y-%m-%d")
         try:
-            count = query_shop_count(date_str)
-            print(f"{date_str}: {count} shops")
+            count = query_shop_count_for_date(date_str)
             records.append({"date": m_date, "osm_shop_count": count})
         except Exception as e:
             print(f"Failed on {date_str}: {e}")
             records.append({"date": m_date, "osm_shop_count": None})
 
-        time.sleep(10)  # be polite to the public Overpass instance
+        # Save incrementally so a crash partway through doesn't lose progress.
+        pd.DataFrame(records).to_csv("osm_monthly_osmnx.csv", index=False)
 
+        time.sleep(5)
+
+    total_elapsed = time.monotonic() - run_start
     osm_monthly = pd.DataFrame(records)
     osm_monthly["osm_net_new"] = osm_monthly["osm_shop_count"].diff()
-    osm_monthly.to_csv("osm_monthly.csv", index=False)
-    print("Saved osm_monthly.csv")
+    osm_monthly.to_csv("osm_monthly_osmnx.csv", index=False)
+    print(f"Saved osm_monthly_osmnx.csv ({len(records)} months in {total_elapsed/60:.1f} min)")
 
 
 if __name__ == "__main__":
