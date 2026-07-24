@@ -56,7 +56,7 @@ def query_shop_count_for_date(date_str):
 
 
 def main():
-    months = pd.date_range("2015-01-01", "2021-12-01", freq="MS")
+    months = pd.date_range("2017-05-02", "2021-12-01", freq="MS")
     records = []
 
     run_start = time.monotonic()
