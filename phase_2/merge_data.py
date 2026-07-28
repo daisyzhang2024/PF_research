@@ -34,6 +34,7 @@ merged_df.insert(0, 'date_dt', first_col)
 # 5. Export updated dataset
 output_file = "combined_CC_v4.csv"
 merged_df.to_csv(output_file, index=False)
+merged_df.to_excel("combined_CC_v4.xlsx", index=False)
 
 print(f"Successfully merged data! Output saved to '{output_file}'\n")
 print(merged_df.head(10))
