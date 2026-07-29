@@ -1,26 +1,19 @@
-import pandas as pd
 from trendspy import Trends
+import time
 
-tr = Trends()
+tr = Trends(request_delay=5.0)  # 2.0 often isn't enough anymore
 
-# Query Google Trends
-df = tr.interest_over_time(
-    keywords=["shopping chicago"],
-    timeframe="2015-01-01 2021-12-01",
-    geo="US-IL-602"
-)
+def fetch_with_backoff(tr, keywords, timeframe, geo, max_retries=6):
+    for attempt in range(max_retries):
+        try:
+            return tr.interest_over_time(keywords=keywords, timeframe=timeframe, geo=geo)
+        except Exception as e:
+            if "429" in str(e):
+                wait = 30 * (2 ** attempt)  # 30, 60, 120, 240...
+                print(f"429 hit, backing off {wait}s (attempt {attempt+1})")
+                time.sleep(wait)
+            else:
+                raise
+    raise RuntimeError("Exceeded retries — Google is still blocking this IP")
 
-# 1. Ensure index is DatetimeIndex
-df.index = pd.to_datetime(df.index)
-
-# 2. Resample monthly on the index directly (no column key needed)
-monthly_trends = df.resample('MS')['shopping chicago'].mean().reset_index()
-
-# 3. Rename columns cleanly
-monthly_trends.columns = ['date', 'chicago_search_sentiment']
-
-# 4. Save
-monthly_trends.to_csv("chicago_sentiment.csv", index=False)
-
-print("Saved chicago_sentiment.csv successfully!")
-print(monthly_trends.head())
+df = fetch_with_backoff(tr, ["shopping chicago"], "2022-01-01 2026-04-01", "US-IL-602")

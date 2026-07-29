@@ -263,29 +263,32 @@ def main():
 if __name__ == "__main__":
     main()
 
+#   Test (OOS): 2021-01-01 to 2021-12-01 (12 months)
+
 # Evaluating candidate models with Chicago local features...
-#   Ridge                backtest RMSE:    11,068,627   MAPE: 13.56% --> actual best model selected by Gemini
-#   RandomForest         backtest RMSE:     5,346,510   MAPE: 6.13%
-#   GradientBoosting     backtest RMSE:     4,323,774   MAPE: 4.79%
+#   Ridge                backtest RMSE:    11,113,369   MAPE: 13.77%
+#   RandomForest         backtest RMSE:     5,319,860   MAPE: 6.09%
+#   GradientBoosting     backtest RMSE:     4,330,892   MAPE: 4.80%
 
 # >>> Selected model: GradientBoosting (lowest rolling-origin backtest RMSE)
 
 # ============================================================
 # GradientBoosting — Extended Model Diagnostics
 # ============================================================
-
 #   In-sample (train)
 #   -----------------
-#     R2        : 0.9848
-#     MAE       : 1,424,444.097
-#     RMSE      : 1,790,379.176
-#     MAPE_%    : 2.497
-#     sMAPE_%   : 2.480
+#     R2        : 0.9846
+#     MAE       : 1,435,882.051
+#     RMSE      : 1,799,358.880
+#     MAPE_%    : 2.502
+#     sMAPE_%   : 2.487
 
 #   Out-of-sample (test)
 #   --------------------
-#     R2        : -0.4485
-#     MAE       : 10,515,920.867
-#     RMSE      : 12,128,770.559
-#     MAPE_%    : 19.199
-#     sMAPE_%   : 17.506
+#     R2        : -0.4223
+#     MAE       : 10,365,479.466
+#     RMSE      : 12,018,956.035
+#     MAPE_%    : 18.881
+#     sMAPE_%   : 17.286
+
+# Saved plot: chmr_extended_model_results.png
