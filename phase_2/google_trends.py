@@ -17,3 +17,4 @@ def fetch_with_backoff(tr, keywords, timeframe, geo, max_retries=6):
     raise RuntimeError("Exceeded retries — Google is still blocking this IP")
 
 df = fetch_with_backoff(tr, ["shopping chicago"], "2022-01-01 2026-04-01", "US-IL-602")
+df.to_csv("second_try_sentiment.csv")
