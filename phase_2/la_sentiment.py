@@ -1,32 +1,20 @@
-import pandas as pd
 from trendspy import Trends
+import time
 
-def fetch_la_sentiment():
-    tr = Trends()
+tr = Trends(request_delay=5.0)  # 2.0 often isn't enough anymore
 
-    # Query Google Trends for LA Metro DMA (US-CA-803)
-    # Using keywords relevant to LA shopping search activity
-    df = tr.interest_over_time(
-        keywords=["shopping los angeles"],
-        timeframe="2018-04-01 2026-04-01",
-        geo="US-CA-803"
-    )
+def fetch_with_backoff(tr, keywords, timeframe, geo, max_retries=6):
+    for attempt in range(max_retries):
+        try:
+            return tr.interest_over_time(keywords=keywords, timeframe=timeframe, geo=geo)
+        except Exception as e:
+            if "429" in str(e):
+                wait = 30 * (2 ** attempt)  # 30, 60, 120, 240...
+                print(f"429 hit, backing off {wait}s (attempt {attempt+1})")
+                time.sleep(wait)
+            else:
+                raise
+    raise RuntimeError("Exceeded retries — Google is still blocking this IP")
 
-    # 1. Ensure index is a DatetimeIndex
-    df.index = pd.to_datetime(df.index)
-
-    # 2. Resample monthly ('MS' = Month Start) and calculate mean search interest
-    monthly_trends = df.resample('MS')['shopping los angeles'].mean().reset_index()
-
-    # 3. Cleanly rename columns
-    monthly_trends.columns = ['date', 'la_search_sentiment']
-
-    # 4. Export to CSV
-    output_filename = "la_sentiment.csv"
-    monthly_trends.to_csv(output_filename, index=False)
-
-    print(f"Saved {output_filename} successfully!\n")
-    print(monthly_trends.head())
-
-if __name__ == "__main__":
-    fetch_la_sentiment()
+df = fetch_with_backoff(tr, ["shopping los angeles"], "2018-04-01 2026-04-01", "US-CA-803")
+df.to_csv("la_search_sentiment.csv")
