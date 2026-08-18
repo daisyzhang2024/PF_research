@@ -1,7 +1,7 @@
 import pandas as pd
 
 # 1. Read the CSV file
-file_path = "combined_LA.csv"  # Replace with your actual CSV file name
+file_path = "nyc_data.csv"  # Replace with your actual CSV file name
 df = pd.read_csv(file_path)
 
 # # 2. Drop unnamed / empty trailing columns caused by extra commas
@@ -21,5 +21,5 @@ print("\n--- Preview ---")
 print(df.head())
 
 # 5. Save back to a cleaned CSV without trailing comma artifacts
-df.to_csv("combined_LA.csv", index=False)
-print("\nCleaned CSV saved to 'combined_LA' successfully!")
+df.to_csv("combined_nyc.csv", index=False)
+print("\nCleaned CSV saved to 'combined_nyc.csv' successfully!")
